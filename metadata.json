@@ -1,0 +1,5 @@
+{
+  "name": "SRT Perfector AI",
+  "description": "An AI-powered tool that aligns a perfect content script with an unfinished SRT file to create a finalized, perfectly timed subtitle file.",
+  "requestFramePermissions": []
+}
