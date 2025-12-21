@@ -29,7 +29,7 @@ export default function App() {
         {
           id: '1',
           sender: Sender.Bot,
-          text: "Chào bạn. Tôi là AI hỗ trợ xử lý phụ đề.\n\nĐầu tiên, cho tôi xin file Content gốc của bạn?",
+          text: "Chào bạn. Tôi là AI hỗ trợ xử lý phụ đề.\n\nĐầu tiên, hãy gửi nội dung (Content) gốc của bạn.\nBạn có thể tải file hoặc dán text trực tiếp.",
           isFileRequest: true,
           fileType: 'content'
         }
@@ -38,17 +38,26 @@ export default function App() {
     }
   }, [messages.length]);
 
-  const handleFileUpload = async (file: File) => {
-    const text = await file.text();
+  const handleInputSubmit = async (input: File | string) => {
+    let text = "";
+    let attachmentLabel = "";
+
+    if (input instanceof File) {
+      text = await input.text();
+      attachmentLabel = `File: ${input.name}`;
+    } else {
+      text = input;
+      attachmentLabel = "Pasted Text";
+    }
     
-    // 1. User uploads content
+    // 1. User submits content
     if (appState === AppState.WaitingForContent) {
       // Add user message
       const userMsg: ChatMessage = {
         id: Date.now().toString(),
         sender: Sender.User,
-        text: `Đã gửi file Content gốc.`,
-        attachmentName: file.name
+        text: `Đã gửi Content gốc.`,
+        attachmentName: attachmentLabel
       };
       setMessages(prev => [...prev, userMsg]);
       setContentFileText(text);
@@ -58,7 +67,7 @@ export default function App() {
         const botMsg: ChatMessage = {
           id: (Date.now() + 1).toString(),
           sender: Sender.Bot,
-          text: "Ok. Tôi đã nhận được Content gốc.\n\nTiếp theo hãy cung cấp file SRT chưa hoàn thiện cho tôi.",
+          text: "Ok. Tôi đã nhận được Content gốc.\n\nTiếp theo hãy cung cấp SRT chưa hoàn thiện (File hoặc dán text).",
           isFileRequest: true,
           fileType: 'srt'
         };
@@ -67,14 +76,14 @@ export default function App() {
       }, 600);
     }
     
-    // 2. User uploads SRT
+    // 2. User submits SRT
     else if (appState === AppState.WaitingForSrt) {
       // Add user message
       const userMsg: ChatMessage = {
         id: Date.now().toString(),
         sender: Sender.User,
-        text: `Đã gửi file SRT chưa hoàn thiện.`,
-        attachmentName: file.name
+        text: `Đã gửi SRT chưa hoàn thiện.`,
+        attachmentName: attachmentLabel
       };
       setMessages(prev => [...prev, userMsg]);
       setSrtFileText(text);
@@ -93,7 +102,7 @@ export default function App() {
     const botAckMsg: ChatMessage = {
       id: processId,
       sender: Sender.Bot,
-      text: "Ok, cảm ơn bạn, tôi đã nhận đủ Content gốc và SRT chưa hoàn thiện.\n\nBây giờ tôi sẽ tiến hành tạo SRT HOÀN THIỆN dựa vào text từ Content gốc...",
+      text: "Ok, cảm ơn bạn, tôi đã nhận đủ dữ liệu.\n\nBây giờ tôi sẽ tiến hành tạo SRT HOÀN THIỆN dựa vào text từ Content gốc...",
       isProcessing: true
     };
     setMessages(prev => [...prev, botAckMsg]);
@@ -107,7 +116,7 @@ export default function App() {
           return {
             ...msg,
             isProcessing: false,
-            text: "Ok, cảm ơn bạn, tôi đã nhận đủ Content gốc và SRT chưa hoàn thiện. Bây giờ tôi sẽ tiến hành tạo SRT HOÀN THIỆN dựa vào text từ Content gốc:\n\nYêu cầu: Khớp Content gốc vào SRT chưa hoàn thiện và hoàn thành lại SRT HOÀN THIỆN đúng timestamp từ file SRT chưa hoàn thiện.\n\nSRT HOÀN THIỆN:",
+            text: "Xử lý hoàn tất! Dưới đây là file SRT đã được đồng bộ chuẩn xác:\n\n",
             result: result
           };
         }
@@ -167,21 +176,21 @@ export default function App() {
           <ChatBubble 
             key={msg.id} 
             message={msg} 
-            onUpload={handleFileUpload} 
+            onInputSubmit={handleInputSubmit} 
           />
         ))}
         <div ref={messagesEndRef} />
       </main>
 
-      {/* Footer / Input placeholder (Visual only since interaction is file-based) */}
+      {/* Footer / Input placeholder (Visual only since interaction is bubble-based) */}
       <footer className="flex-shrink-0 p-4 bg-gray-900 border-t border-gray-800">
         <div className="relative">
           <input 
             type="text" 
             disabled 
             placeholder={
-              appState === AppState.WaitingForContent ? "Please upload Content file..." :
-              appState === AppState.WaitingForSrt ? "Please upload SRT file..." :
+              appState === AppState.WaitingForContent ? "Waiting for Content input..." :
+              appState === AppState.WaitingForSrt ? "Waiting for SRT input..." :
               appState === AppState.Processing ? "AI is thinking..." :
               "Processing complete."
             }

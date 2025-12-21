@@ -1,16 +1,17 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { Sender, ChatMessage } from '../types';
-import { User, Bot, FileText, Loader2, Download, Copy, Check } from 'lucide-react';
+import { User, Bot, FileText, Loader2, Download, Copy, Check, Send, Upload } from 'lucide-react';
 
 interface ChatBubbleProps {
   message: ChatMessage;
-  onUpload?: (file: File) => void;
+  onInputSubmit?: (input: File | string) => void;
 }
 
-export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onUpload }) => {
+export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onInputSubmit }) => {
   const isBot = message.sender === Sender.Bot;
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const [copied, setCopied] = React.useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [copied, setCopied] = useState(false);
+  const [inputText, setInputText] = useState('');
 
   const handleCopy = async () => {
     if (message.result) {
@@ -35,14 +36,21 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onUpload }) => 
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0] && onUpload) {
-      onUpload(e.target.files[0]);
+    if (e.target.files && e.target.files[0] && onInputSubmit) {
+      onInputSubmit(e.target.files[0]);
+    }
+  };
+
+  const handleTextSubmit = () => {
+    if (inputText.trim() && onInputSubmit) {
+      onInputSubmit(inputText);
+      setInputText(''); // Clear after send
     }
   };
 
   return (
     <div className={`flex w-full mb-6 ${isBot ? 'justify-start' : 'justify-end'}`}>
-      <div className={`flex max-w-[85%] md:max-w-[70%] ${isBot ? 'flex-row' : 'flex-row-reverse'}`}>
+      <div className={`flex max-w-[95%] md:max-w-[80%] ${isBot ? 'flex-row' : 'flex-row-reverse'}`}>
         
         {/* Avatar */}
         <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${isBot ? 'bg-indigo-600 mr-3' : 'bg-emerald-600 ml-3'}`}>
@@ -50,7 +58,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onUpload }) => 
         </div>
 
         {/* Bubble */}
-        <div className={`flex flex-col p-4 rounded-2xl shadow-md ${
+        <div className={`flex flex-col p-4 rounded-2xl shadow-md transition-all duration-200 ${
           isBot 
             ? 'bg-gray-800 text-gray-100 rounded-tl-none border border-gray-700' 
             : 'bg-emerald-700 text-white rounded-tr-none'
@@ -60,31 +68,60 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onUpload }) => 
             {message.text}
           </p>
 
-          {/* Attachment Indicator */}
+          {/* Attachment Indicator (For User Messages) */}
           {message.attachmentName && (
             <div className="mt-3 flex items-center p-2 bg-black/20 rounded-lg text-sm">
               <FileText size={16} className="mr-2 opacity-70" />
-              <span className="truncate max-w-[200px]">{message.attachmentName}</span>
+              <span className="truncate max-w-[200px] font-mono">{message.attachmentName}</span>
             </div>
           )}
 
-          {/* File Upload Action */}
-          {message.isFileRequest && onUpload && !message.attachmentName && (
-            <div className="mt-4">
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
-                accept={message.fileType === 'srt' ? ".srt,.txt" : ".txt,.md,.doc,.docx"} 
-                onChange={handleFileChange}
-              />
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg transition-colors text-sm font-medium"
-              >
-                <FileText size={16} />
-                Select {message.fileType === 'srt' ? 'Unfinished SRT' : 'Source Content'} File
-              </button>
+          {/* Input Area (For Bot Requests) */}
+          {message.isFileRequest && onInputSubmit && !message.attachmentName && (
+            <div className="mt-4 flex flex-col gap-3">
+              {/* Text Area */}
+              <div className="relative">
+                <textarea
+                  className="w-full bg-gray-900/50 border border-gray-600 rounded-lg p-3 text-sm text-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all placeholder-gray-500 font-mono"
+                  rows={4}
+                  placeholder={message.fileType === 'srt' ? "Paste SRT content here..." : "Paste source content here..."}
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                />
+              </div>
+
+              {/* Actions Row */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button 
+                  onClick={handleTextSubmit}
+                  disabled={!inputText.trim()}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    inputText.trim() 
+                      ? 'bg-indigo-600 hover:bg-indigo-700 text-white' 
+                      : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  <Send size={16} />
+                  Submit Text
+                </button>
+                
+                <div className="flex items-center justify-center text-gray-500 text-xs font-medium px-1">OR</div>
+
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  accept={message.fileType === 'srt' ? ".srt,.txt" : ".txt,.md,.doc,.docx"} 
+                  onChange={handleFileChange}
+                />
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-colors text-sm font-medium border border-gray-600"
+                >
+                  <Upload size={16} />
+                  Upload File
+                </button>
+              </div>
             </div>
           )}
 
